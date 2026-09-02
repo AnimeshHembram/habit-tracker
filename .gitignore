@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+
+# Flask instance folder - this is where the local SQLite database lives.
+# Never commit personal habit data.
+instance/
+
+# Uploaded profile photos (user-specific, not part of the template)
+app/static/uploads/*
+!app/static/uploads/.gitkeep
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

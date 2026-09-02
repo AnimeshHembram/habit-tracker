@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Daily Habit Tracker</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%233fb950%22/><path d=%22M28 52 l16 16 l28 -34%22 fill=%22none%22 stroke=%22white%22 stroke-width=%2210%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/></svg>">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <div class="page">
+
+    <header class="profile-header" id="profile-header">
+      <button class="avatar-btn" id="avatar-btn" title="Change photo">
+        <img id="avatar-img" class="avatar-img" src="" alt="Profile photo" hidden>
+        <span id="avatar-placeholder" class="avatar-placeholder">+</span>
+      </button>
+      <input type="file" id="photo-input" accept="image/*" hidden>
+
+      <div class="profile-info">
+        <h1 id="display-name" class="display-name">Your Name</h1>
+        <div class="score-line" id="score-line">
+          <span class="score-badge" id="score-badge">— / —</span>
+          <span class="score-caption">habits done today</span>
+        </div>
+      </div>
+
+      <button class="icon-btn" id="settings-btn" title="Settings">⚙</button>
+    </header>
+
+    <section class="panel heatmap-panel">
+      <div class="panel-header">
+        <h2>Activity</h2>
+        <div class="heatmap-legend">
+          <span>Less</span>
+          <span class="legend-swatch tier-none"></span>
+          <span class="legend-swatch tier-light"></span>
+          <span class="legend-swatch tier-dark"></span>
+          <span class="legend-swatch tier-full"></span>
+          <span>More</span>
+        </div>
+      </div>
+      <div id="heatmap" class="heatmap"></div>
+      <p class="heatmap-hint">Each day is colored by how many of that day's habits you completed — blank is none, green is partial, blue is a perfect day.</p>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Today</h2>
+        <button class="btn btn-primary" id="add-habit-btn">+ Add habit</button>
+      </div>
+      <div id="habit-grid" class="habit-grid"></div>
+      <p id="empty-state" class="empty-state" hidden>No habits yet — add your first one to get started.</p>
+    </section>
+
+    <section class="panel timer-panel">
+      <div class="panel-header">
+        <h2>Timer / Countdown</h2>
+      </div>
+      <p class="placeholder-note">
+        This section is reserved for a focus timer / goal countdown — design still being finalized. The rest of the app is fully functional.
+      </p>
+    </section>
+
+  </div>
+
+  <!-- Add / edit habit modal -->
+  <div class="modal-overlay" id="habit-modal-overlay" hidden>
+    <div class="modal">
+      <h3 id="habit-modal-title">New habit</h3>
+      <label class="field-label">Habit name</label>
+      <input type="text" id="habit-name" class="field-input" placeholder="e.g. Read for 20 minutes">
+
+      <label class="field-label">Category</label>
+      <select id="habit-category" class="field-input">
+        {% for c in categories %}
+        <option value="{{ c }}">{{ c }}</option>
+        {% endfor %}
+      </select>
+
+      <label class="field-label">Frequency</label>
+      <div class="freq-row">
+        <label><input type="radio" name="freq" value="daily" checked> Every day</label>
+        <label><input type="radio" name="freq" value="weekly"> Specific days</label>
+      </div>
+      <div class="weekday-row" id="weekday-row">
+        <label><input type="checkbox" class="wd" value="0" checked>Mon</label>
+        <label><input type="checkbox" class="wd" value="1" checked>Tue</label>
+        <label><input type="checkbox" class="wd" value="2" checked>Wed</label>
+        <label><input type="checkbox" class="wd" value="3" checked>Thu</label>
+        <label><input type="checkbox" class="wd" value="4" checked>Fri</label>
+        <label><input type="checkbox" class="wd" value="5" checked>Sat</label>
+        <label><input type="checkbox" class="wd" value="6" checked>Sun</label>
+      </div>
+
+      <label class="field-label">Color</label>
+      <div class="color-row" id="color-row">
+        {% for name, hex in color_presets.items() %}
+        <button type="button" class="color-swatch" data-color="{{ hex }}" style="background:{{ hex }}"></button>
+        {% endfor %}
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn" id="habit-cancel-btn">Cancel</button>
+        <button class="btn btn-primary" id="habit-save-btn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings modal -->
+  <div class="modal-overlay" id="settings-modal-overlay" hidden>
+    <div class="modal">
+      <h3>Profile settings</h3>
+      <label class="field-label">Display name</label>
+      <input type="text" id="settings-name" class="field-input" placeholder="Your name">
+
+      <label class="field-label">Accent color</label>
+      <input type="color" id="settings-accent" class="field-color">
+
+      <label class="field-label">Background color (leave blank for default)</label>
+      <input type="color" id="settings-bg" class="field-color">
+      <button type="button" class="btn" id="settings-bg-reset">Reset to default</button>
+
+      <div class="modal-actions">
+        <button class="btn" id="settings-cancel-btn">Cancel</button>
+        <button class="btn btn-primary" id="settings-save-btn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
