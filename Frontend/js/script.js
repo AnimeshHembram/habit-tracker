@@ -70,6 +70,7 @@ themeBtn.addEventListener("click", () => {
 const mainTopbar = document.querySelector(".topbar");
 const topbarDivider = document.querySelector(".topbar-divider");
 const dashboardMain = document.querySelector(".dashboard");
+const todayView = document.getElementById("todayView");
 const analyticsView = document.getElementById("analyticsView");
 const habitsView = document.getElementById("habitsView");
 const menuBtn = document.getElementById("menuBtn");
@@ -83,7 +84,9 @@ let activeTab = "dashboard";
 function applyTab(tab) {
   activeTab = tab;
   dashboardMain.hidden = tab !== "dashboard";
+  todayView.hidden = tab !== "today";
   analyticsView.hidden = tab !== "analytics";
+  if (tab === "today") renderTodayView();
   if (tab === "analytics") renderAnalytics();
 }
 
@@ -100,6 +103,7 @@ function showHabits() {
   mainTopbar.hidden = true;
   topbarDivider.hidden = true;
   dashboardMain.hidden = true;
+  todayView.hidden = true;
   analyticsView.hidden = true;
   habitsView.hidden = false;
   habitNameInput.focus();
@@ -143,6 +147,46 @@ function loadHabits() {
 
 function saveHabits() {
   localStorage.setItem("habitTrackerHabits", JSON.stringify(habits));
+}
+
+// ---------- Completions: state + persistence ----------
+//
+// Shape: { "YYYY-MM-DD": { "<habitId>": true, ... }, ... } — a date key is
+// only present once at least one habit has been checked off that day.
+
+let completions = loadCompletions();
+
+function loadCompletions() {
+  try {
+    return JSON.parse(localStorage.getItem("habitTrackerCompletions")) || {};
+  } catch {
+    return {};
+  }
+}
+
+function saveCompletions() {
+  localStorage.setItem("habitTrackerCompletions", JSON.stringify(completions));
+}
+
+function dateKey(date) {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function isHabitDone(habitId, date) {
+  const day = completions[dateKey(date)];
+  return !!(day && day[habitId]);
+}
+
+function setHabitDone(habitId, date, done) {
+  const key = dateKey(date);
+  if (done) {
+    if (!completions[key]) completions[key] = {};
+    completions[key][habitId] = true;
+  } else if (completions[key]) {
+    delete completions[key][habitId];
+    if (Object.keys(completions[key]).length === 0) delete completions[key];
+  }
+  saveCompletions();
 }
 
 // ---------- Color row ----------
@@ -346,12 +390,166 @@ habitForm.addEventListener("submit", (e) => {
 renderColorRow();
 renderHabits();
 
+// ---------- Today view: tap a habit to check it off for a day ----------
+//
+// Defaults to today, but the date heading opens a calendar (same style as
+// the Analytics one) so a missed day can be ticked off after the fact.
+
+const todayDateBtn = document.getElementById("todayDateBtn");
+const todayDateLabelEl = document.getElementById("todayDateLabel");
+const todayJumpBtn = document.getElementById("todayJumpBtn");
+const todaySummaryEl = document.getElementById("todaySummary");
+const todayListEl = document.getElementById("todayList");
+const todayEmptyEl = document.getElementById("todayEmpty");
+const todayDatePickerEl = document.getElementById("todayDatePicker");
+const todayDatePickerGridEl = document.getElementById("todayDatePickerGrid");
+const todayDatePickerLabelEl = document.getElementById("todayDatePickerLabel");
+const todayDatePickerPrevBtn = document.getElementById("todayDatePickerPrev");
+const todayDatePickerNextBtn = document.getElementById("todayDatePickerNext");
+
+let todayViewDate = new Date();
+let todayPickerMonth = todayViewDate.getMonth();
+let todayPickerYear = todayViewDate.getFullYear();
+
+function startOfDay(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function renderTodayView() {
+  const isToday = isSameDate(todayViewDate, new Date());
+
+  todayDateLabelEl.textContent = todayViewDate.toLocaleDateString(undefined, {
+    weekday: "long",
+    day: "2-digit",
+    month: "short",
+  });
+  todayJumpBtn.hidden = isToday;
+
+  todayEmptyEl.hidden = habits.length > 0;
+  todaySummaryEl.hidden = habits.length === 0;
+  todayListEl.innerHTML = "";
+
+  const doneCount = habits.filter((h) => isHabitDone(h.id, todayViewDate)).length;
+  todaySummaryEl.textContent = `${doneCount}/${habits.length} done${isToday ? " today" : ""}`;
+
+  habits.forEach((habit) => {
+    const done = isHabitDone(habit.id, todayViewDate);
+
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "today-row";
+    row.setAttribute("aria-pressed", String(done));
+
+    const left = document.createElement("span");
+    left.className = "today-row-left";
+    left.innerHTML = `<span class="today-dot" style="background:${habit.color}"></span><span class="today-name${done ? " done" : ""}">${habit.name}</span>`;
+
+    const check = document.createElement("span");
+    check.className = "today-check" + (done ? " done" : "");
+    check.style.background = done ? habit.color : "transparent";
+    check.textContent = done ? "✓" : "";
+
+    row.appendChild(left);
+    row.appendChild(check);
+
+    row.addEventListener("click", () => {
+      setHabitDone(habit.id, todayViewDate, !done);
+      renderTodayView();
+    });
+
+    todayListEl.appendChild(row);
+  });
+}
+
+function renderTodayDatePickerGrid() {
+  todayDatePickerLabelEl.textContent = `${MONTH_NAMES_FULL[todayPickerMonth]} ${todayPickerYear}`;
+  todayDatePickerGridEl.innerHTML = "";
+
+  const today = new Date();
+  const todayStart = startOfDay(today);
+  const cells = buildCalendarCells(todayPickerYear, todayPickerMonth);
+
+  cells.forEach((c) => {
+    const cellDate = new Date(todayPickerYear, c.month, c.day);
+    const cell = document.createElement("button");
+    cell.type = "button";
+    cell.className = "date-picker-cell";
+    if (c.outside) cell.classList.add("outside");
+    if (isSameDate(cellDate, today)) cell.classList.add("today");
+    if (isSameDate(cellDate, todayViewDate)) cell.classList.add("active");
+    if (cellDate.getTime() > todayStart.getTime()) cell.classList.add("disabled");
+    cell.textContent = c.day;
+    cell.addEventListener("click", (e) => {
+      e.stopPropagation();
+      todayViewDate = cellDate;
+      hideTodayDatePicker();
+      renderTodayView();
+    });
+    todayDatePickerGridEl.appendChild(cell);
+  });
+}
+
+function showTodayDatePicker() {
+  todayPickerMonth = todayViewDate.getMonth();
+  todayPickerYear = todayViewDate.getFullYear();
+  renderTodayDatePickerGrid();
+  todayDatePickerEl.hidden = false;
+  todayDateBtn.setAttribute("aria-expanded", "true");
+}
+
+function hideTodayDatePicker() {
+  todayDatePickerEl.hidden = true;
+  todayDateBtn.setAttribute("aria-expanded", "false");
+}
+
+todayDateBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  if (todayDatePickerEl.hidden) {
+    showTodayDatePicker();
+  } else {
+    hideTodayDatePicker();
+  }
+});
+
+todayDatePickerPrevBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  todayPickerMonth -= 1;
+  if (todayPickerMonth < 0) {
+    todayPickerMonth = 11;
+    todayPickerYear -= 1;
+  }
+  renderTodayDatePickerGrid();
+});
+
+todayDatePickerNextBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  todayPickerMonth += 1;
+  if (todayPickerMonth > 11) {
+    todayPickerMonth = 0;
+    todayPickerYear += 1;
+  }
+  renderTodayDatePickerGrid();
+});
+
+todayJumpBtn.addEventListener("click", () => {
+  todayViewDate = new Date();
+  renderTodayView();
+});
+
+document.addEventListener("click", (e) => {
+  if (todayDatePickerEl.hidden) return;
+  if (todayDatePickerEl.contains(e.target) || e.target.closest("#todayDateBtn")) return;
+  hideTodayDatePicker();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") hideTodayDatePicker();
+});
+
 // ---------- Analytics view ----------
 //
-// NOTE: there's no daily habit-completion tracking mechanic built yet (no
-// "mark done today" action), so every number below is seeded placeholder
-// data — stable per year, not random noise — standing in for what will
-// come from real completion history once that's built.
+// All heatmap, score, and progress numbers below are derived from real
+// completion history (habitTrackerCompletions in localStorage), built up by
+// checking habits off in the Today tab.
 
 const MONTH_DAYS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -359,47 +557,57 @@ const MONTH_NAMES_FULL = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
-const YEARS = [2026, 2025, 2024];
+function getYearWindow() {
+  return [activeYear, activeYear - 1, activeYear - 2];
+}
 
 let activeYear = new Date().getFullYear();
 let currentYearData = [];
+let yearPickerStart = activeYear - 5;
 
 const scoreHeadingEl = document.getElementById("scoreHeading");
 const todayLabelEl = document.getElementById("todayLabel");
 const todayLabelBtn = document.getElementById("todayLabelBtn");
-const dateChecker = document.getElementById("dateChecker");
+const datePickerEl = document.getElementById("datePicker");
+const datePickerGridEl = document.getElementById("datePickerGrid");
+const datePickerLabelEl = document.getElementById("datePickerLabel");
+const datePickerPrevBtn = document.getElementById("datePickerPrev");
+const datePickerNextBtn = document.getElementById("datePickerNext");
 const progressHeatmapGridEl = document.getElementById("progressHeatmapGrid");
 const heatmapMonthsEl = document.getElementById("heatmapMonths");
 const heatmapGridEl = document.getElementById("heatmapGrid");
 const yearListEl = document.getElementById("yearList");
+const yearArrowBtn = document.getElementById("yearArrowBtn");
+const yearPickerEl = document.getElementById("yearPicker");
+const yearPickerGridEl = document.getElementById("yearPickerGrid");
+const yearPickerRangeEl = document.getElementById("yearPickerRange");
+const yearPickerPrevBtn = document.getElementById("yearPickerPrev");
+const yearPickerNextBtn = document.getElementById("yearPickerNext");
 const legendRowEl = document.getElementById("legendRow");
 const mostVisitedEl = document.getElementById("mostVisited");
 const scoresHabitSelect = document.getElementById("scoresHabitSelect");
+const progressHabitSelect = document.getElementById("progressHabitSelect");
 const progressMonthSelect = document.getElementById("progressMonthSelect");
 const progressCountEl = document.getElementById("progressCount");
 
-function mulberry32(seed) {
-  return function () {
-    seed |= 0;
-    seed = (seed + 0x6d2b79f5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function weightedTier(rand) {
-  const r = rand();
-  if (r < 0.72) return 0;
-  if (r < 0.87) return 1;
-  if (r < 0.97) return 2;
+function tierForFraction(fraction) {
+  if (fraction <= 0) return 0;
+  if (fraction < 0.5) return 1;
+  if (fraction < 1) return 2;
   return 3;
 }
 
-function generateYearData(year) {
-  const rand = mulberry32(year);
+// Derives each day's heatmap tier from real completion history: how many
+// of today's habits were checked off on that day, out of the total.
+function computeYearData(year) {
+  const total = habits.length;
   const days = [];
-  for (let i = 0; i < 365; i++) days.push(weightedTier(rand));
+  for (let i = 0; i < 365; i++) {
+    const date = dateForDayIndex(year, i);
+    const day = completions[dateKey(date)];
+    const doneCount = day ? habits.filter((h) => day[h.id]).length : 0;
+    days.push(tierForFraction(total === 0 ? 0 : doneCount / total));
+  }
   return days;
 }
 
@@ -420,7 +628,7 @@ function renderHeatmapMonths() {
 }
 
 function renderHeatmapGrid(year) {
-  const data = generateYearData(year);
+  const data = computeYearData(year);
   heatmapGridEl.innerHTML = "";
   data.forEach((tier, dayIndex) => {
     const cell = document.createElement("div");
@@ -434,7 +642,7 @@ function renderHeatmapGrid(year) {
 
 function renderYearList() {
   yearListEl.innerHTML = "";
-  YEARS.forEach((year) => {
+  getYearWindow().forEach((year) => {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "year-item" + (year === activeYear ? " active" : "");
@@ -501,24 +709,125 @@ function highlightCheckedDate() {
   if (cell) cell.classList.add("checked-cell");
 }
 
-todayLabelBtn.addEventListener("click", () => {
-  if (dateChecker.showPicker) {
-    dateChecker.showPicker();
-  } else {
-    dateChecker.focus();
-  }
-});
+let datePickerMonth = new Date().getMonth();
+let datePickerYear = new Date().getFullYear();
 
-dateChecker.addEventListener("change", () => {
-  if (!dateChecker.value) return;
-  const [y, m, d] = dateChecker.value.split("-").map(Number);
-  checkedDate = new Date(y, m - 1, d);
-  if (y !== activeYear) activeYear = y;
+function daysInMonth(year, month) {
+  return new Date(year, month + 1, 0).getDate();
+}
+
+function isSameDate(a, b) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+// Builds a whole-weeks grid of {day, outside, month} cells for a month
+// calendar: outside-month leading/trailing days included, month may run
+// outside 0-11 (JS Date normalizes that on construction). Shared by every
+// date-picker in the app.
+function buildCalendarCells(year, month) {
+  const firstWeekday = new Date(year, month, 1).getDay();
+  const totalDays = daysInMonth(year, month);
+  const prevMonthDays = daysInMonth(year, month - 1);
+
+  const cells = [];
+  for (let i = firstWeekday - 1; i >= 0; i--) {
+    cells.push({ day: prevMonthDays - i, outside: true, month: month - 1 });
+  }
+  for (let d = 1; d <= totalDays; d++) {
+    cells.push({ day: d, outside: false, month });
+  }
+  let nextDay = 1;
+  while (cells.length % 7 !== 0) {
+    cells.push({ day: nextDay++, outside: true, month: month + 1 });
+  }
+  return cells;
+}
+
+function selectDate(date) {
+  checkedDate = date;
+  activeYear = date.getFullYear();
+  hideDatePicker();
   renderAnalytics();
 
   const idx = dayOfYearIndex(checkedDate);
   const cell = heatmapGridEl.children[idx];
   if (cell) showDayPopover(cell, activeYear, idx, currentYearData[idx]);
+}
+
+function renderDatePickerGrid() {
+  datePickerLabelEl.textContent = `${MONTH_NAMES_FULL[datePickerMonth]} ${datePickerYear}`;
+  datePickerGridEl.innerHTML = "";
+
+  const today = new Date();
+  const cells = buildCalendarCells(datePickerYear, datePickerMonth);
+
+  cells.forEach((c) => {
+    const cellDate = new Date(datePickerYear, c.month, c.day);
+    const cell = document.createElement("button");
+    cell.type = "button";
+    cell.className = "date-picker-cell";
+    if (c.outside) cell.classList.add("outside");
+    if (isSameDate(cellDate, today)) cell.classList.add("today");
+    if (checkedDate && isSameDate(cellDate, checkedDate)) cell.classList.add("active");
+    cell.textContent = c.day;
+    cell.addEventListener("click", (e) => {
+      e.stopPropagation();
+      selectDate(cellDate);
+    });
+    datePickerGridEl.appendChild(cell);
+  });
+}
+
+function showDatePicker() {
+  const base = checkedDate || new Date();
+  datePickerMonth = base.getMonth();
+  datePickerYear = base.getFullYear();
+  renderDatePickerGrid();
+  datePickerEl.hidden = false;
+  todayLabelBtn.setAttribute("aria-expanded", "true");
+}
+
+function hideDatePicker() {
+  datePickerEl.hidden = true;
+  todayLabelBtn.setAttribute("aria-expanded", "false");
+}
+
+todayLabelBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  if (datePickerEl.hidden) {
+    showDatePicker();
+  } else {
+    hideDatePicker();
+  }
+});
+
+datePickerPrevBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  datePickerMonth -= 1;
+  if (datePickerMonth < 0) {
+    datePickerMonth = 11;
+    datePickerYear -= 1;
+  }
+  renderDatePickerGrid();
+});
+
+datePickerNextBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  datePickerMonth += 1;
+  if (datePickerMonth > 11) {
+    datePickerMonth = 0;
+    datePickerYear += 1;
+  }
+  renderDatePickerGrid();
+});
+
+document.addEventListener("click", (e) => {
+  if (datePickerEl.hidden) return;
+  if (datePickerEl.contains(e.target) || e.target.closest("#todayLabelBtn")) return;
+  hideDatePicker();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") hideDatePicker();
 });
 
 function renderMostVisited() {
@@ -536,28 +845,33 @@ function renderMostVisited() {
   });
 }
 
-function renderScoresDropdown() {
-  const previousValue = scoresHabitSelect.value;
-  scoresHabitSelect.innerHTML = "";
+function populateHabitSelect(selectEl) {
+  const previousValue = selectEl.value;
+  selectEl.innerHTML = "";
 
   if (habits.length === 0) {
     const opt = document.createElement("option");
     opt.textContent = "No habits yet";
-    scoresHabitSelect.appendChild(opt);
-    scoresHabitSelect.disabled = true;
+    selectEl.appendChild(opt);
+    selectEl.disabled = true;
     return;
   }
 
-  scoresHabitSelect.disabled = false;
+  selectEl.disabled = false;
   habits.forEach((habit) => {
     const opt = document.createElement("option");
     opt.value = habit.id;
     opt.textContent = habit.name;
-    scoresHabitSelect.appendChild(opt);
+    selectEl.appendChild(opt);
   });
   if (habits.some((h) => h.id === previousValue)) {
-    scoresHabitSelect.value = previousValue;
+    selectEl.value = previousValue;
   }
+}
+
+function renderScoresDropdown() {
+  populateHabitSelect(scoresHabitSelect);
+  populateHabitSelect(progressHabitSelect);
 }
 
 function ensureProgressMonthOptions() {
@@ -607,9 +921,8 @@ function renderAnalytics() {
 
 // ---------- Day detail popover (click a heatmap cell to inspect that day) ----------
 //
-// Placeholder: which habits were "done" that day is derived deterministically
-// from the same seeded tier value, not real completion history (there isn't
-// one yet). Stable per day, so revisiting a date shows the same answer.
+// Shows the real per-habit completion record for that day, read straight
+// from completions.
 
 const dayPopoverEl = document.getElementById("dayPopover");
 const dayPopoverDateEl = document.getElementById("dayPopoverDate");
@@ -623,16 +936,15 @@ function dateForDayIndex(year, dayIndex) {
   return d;
 }
 
-function habitsDoneForDay(year, dayIndex, tier, habitNames) {
-  const names = habitNames.length > 0 ? habitNames : ["Reading", "Workout", "Coding"];
-  const rand = mulberry32(year * 400 + dayIndex);
-  const doneFraction = [0, 0.4, 0.75, 1][tier];
-  return names
-    .map((name) => ({ name, done: rand() < doneFraction }))
+function habitsDoneForDay(year, dayIndex) {
+  const date = dateForDayIndex(year, dayIndex);
+  const day = completions[dateKey(date)];
+  return habits
+    .map((h) => ({ name: h.name, done: !!(day && day[h.id]) }))
     .sort((a, b) => Number(b.done) - Number(a.done));
 }
 
-function showDayPopover(cellEl, year, dayIndex, tier) {
+function showDayPopover(cellEl, year, dayIndex) {
   const date = dateForDayIndex(year, dayIndex);
   const dateStr = date.toLocaleDateString(undefined, {
     weekday: "long",
@@ -642,10 +954,14 @@ function showDayPopover(cellEl, year, dayIndex, tier) {
   });
   dayPopoverDateEl.textContent = dateStr;
 
-  const list = habitsDoneForDay(year, dayIndex, tier, habits.map((h) => h.name));
+  const list = habitsDoneForDay(year, dayIndex);
   const doneCount = list.filter((h) => h.done).length;
   dayPopoverSummaryEl.textContent =
-    tier === 0 ? "Nothing logged this day" : `${doneCount}/${list.length} habits done`;
+    list.length === 0
+      ? "No habits yet"
+      : doneCount === 0
+        ? "Nothing logged this day"
+        : `${doneCount}/${list.length} habits done`;
 
   dayPopoverHabitsEl.innerHTML = "";
   list.forEach(({ name, done }) => {
@@ -680,4 +996,64 @@ document.addEventListener("click", (e) => {
 });
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") hideDayPopover();
+});
+
+function renderYearPickerGrid() {
+  yearPickerRangeEl.textContent = `${yearPickerStart} - ${yearPickerStart + 11}`;
+  yearPickerGridEl.innerHTML = "";
+  for (let i = 0; i < 12; i++) {
+    const year = yearPickerStart + i;
+    const cell = document.createElement("button");
+    cell.type = "button";
+    cell.className = "year-picker-cell" + (year === activeYear ? " active" : "");
+    cell.textContent = year;
+    cell.addEventListener("click", () => {
+      activeYear = year;
+      hideYearPicker();
+      renderAnalytics();
+    });
+    yearPickerGridEl.appendChild(cell);
+  }
+}
+
+function showYearPicker() {
+  yearPickerStart = activeYear - 5;
+  renderYearPickerGrid();
+  yearPickerEl.hidden = false;
+  yearArrowBtn.setAttribute("aria-expanded", "true");
+}
+
+function hideYearPicker() {
+  yearPickerEl.hidden = true;
+  yearArrowBtn.setAttribute("aria-expanded", "false");
+}
+
+yearArrowBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  if (yearPickerEl.hidden) {
+    showYearPicker();
+  } else {
+    hideYearPicker();
+  }
+});
+
+yearPickerPrevBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  yearPickerStart -= 12;
+  renderYearPickerGrid();
+});
+
+yearPickerNextBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  yearPickerStart += 12;
+  renderYearPickerGrid();
+});
+
+document.addEventListener("click", (e) => {
+  if (yearPickerEl.hidden) return;
+  if (yearPickerEl.contains(e.target) || e.target.closest("#yearArrowBtn")) return;
+  hideYearPicker();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") hideYearPicker();
 });

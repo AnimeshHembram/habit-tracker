@@ -27,6 +27,7 @@
 
       <nav class="topbar-nav">
         <a href="#" class="nav-link active" data-tab="dashboard">Dashboard</a>
+        <a href="#" class="nav-link" data-tab="today">Today</a>
         <a href="#" class="nav-link" data-tab="analytics">Analytics</a>
       </nav>
 
@@ -56,49 +57,106 @@
       </section>
     </main>
 
+    <section class="today-view" id="todayView" hidden>
+      <div class="today-header">
+        <div class="today-date-picker">
+          <button type="button" id="todayDateBtn" class="today-date" aria-haspopup="true" aria-expanded="false">
+            <span id="todayDateLabel">--</span>
+          </button>
+
+          <div class="date-picker" id="todayDatePicker" hidden>
+            <div class="date-picker-header">
+              <button type="button" id="todayDatePickerPrev" aria-label="Previous month">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+              </button>
+              <span id="todayDatePickerLabel">Month Year</span>
+              <button type="button" id="todayDatePickerNext" aria-label="Next month">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+              </button>
+            </div>
+            <div class="date-picker-weekdays">
+              <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+            </div>
+            <div class="date-picker-grid" id="todayDatePickerGrid"></div>
+          </div>
+        </div>
+
+        <button type="button" id="todayJumpBtn" class="today-jump-btn" hidden>Jump to today</button>
+
+        <p id="todaySummary" class="today-summary">--/-- done</p>
+      </div>
+
+      <div class="today-list" id="todayList"></div>
+
+      <p class="empty-state" id="todayEmpty" hidden>No habits yet — add one from the menu.</p>
+    </section>
+
     <section class="analytics-view" id="analyticsView" hidden>
       <div class="heatmap-block">
         <div class="heatmap-main">
           <div class="score-row">
             <h2 id="scoreHeading" class="score-heading">Score --/365</h2>
             <div class="today-picker">
-              <button type="button" id="todayLabelBtn" class="today-label" aria-label="Check a past date">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="3" y="5" width="18" height="16" rx="2"></rect>
-                  <line x1="16" y1="3" x2="16" y2="7"></line>
-                  <line x1="8" y1="3" x2="8" y2="7"></line>
-                  <line x1="3" y1="10" x2="21" y2="10"></line>
-                </svg>
+              <button type="button" id="todayLabelBtn" class="today-label" aria-label="Check a past date" aria-haspopup="true" aria-expanded="false">
                 <span id="todayLabel">--</span>
               </button>
-              <input type="date" id="dateChecker" class="date-checker-input" aria-hidden="true" tabindex="-1" />
+
+              <div class="date-picker" id="datePicker" hidden>
+                <div class="date-picker-header">
+                  <button type="button" id="datePickerPrev" aria-label="Previous month">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                  </button>
+                  <span id="datePickerLabel">Month Year</span>
+                  <button type="button" id="datePickerNext" aria-label="Next month">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                  </button>
+                </div>
+                <div class="date-picker-weekdays">
+                  <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+                </div>
+                <div class="date-picker-grid" id="datePickerGrid"></div>
+              </div>
             </div>
           </div>
 
-          <div class="heatmap-scroll">
-            <div class="heatmap-months" id="heatmapMonths"></div>
-            <div class="heatmap-body">
-              <div class="heatmap-daylabels">
-                <span>Mon</span>
-                <span>Wed</span>
-                <span>Fri</span>
+          <div class="heatmap-anchor">
+            <div class="heatmap-scroll">
+              <div class="heatmap-months" id="heatmapMonths"></div>
+              <div class="heatmap-body">
+                <div class="heatmap-daylabels">
+                  <span>Mon</span>
+                  <span>Wed</span>
+                  <span>Fri</span>
+                </div>
+                <div class="heatmap-grid" id="heatmapGrid"></div>
               </div>
-              <div class="heatmap-grid" id="heatmapGrid"></div>
             </div>
-            <div class="inline-legend">
-              <span>Less</span>
-              <span class="legend-swatch-inline" style="background:var(--tier0)"></span>
-              <span class="legend-swatch-inline" style="background:var(--tier1)"></span>
-              <span class="legend-swatch-inline" style="background:var(--tier2)"></span>
-              <span class="legend-swatch-inline" style="background:var(--tier3)"></span>
-              <span>More</span>
+
+            <div class="year-list-wrap">
+              <div class="year-list" id="yearList"></div>
+              <button type="button" id="yearArrowBtn" class="year-list-arrow-btn" aria-label="Choose a year" aria-haspopup="true" aria-expanded="false">
+                <svg class="year-list-arrow" viewBox="0 0 19 6" width="19" height="6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="1,1 9.5,5 18,1"></polyline>
+                </svg>
+              </button>
+
+              <div class="year-picker" id="yearPicker" hidden>
+                <div class="year-picker-header">
+                  <button type="button" id="yearPickerPrev" aria-label="Earlier years">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                  </button>
+                  <span id="yearPickerRange">2015 - 2026</span>
+                  <button type="button" id="yearPickerNext" aria-label="Later years">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                  </button>
+                </div>
+                <div class="year-picker-grid" id="yearPickerGrid"></div>
+              </div>
             </div>
           </div>
 
           <div class="legend-row" id="legendRow"></div>
         </div>
-
-        <div class="year-list" id="yearList"></div>
       </div>
 
       <hr class="section-divider" />
@@ -116,6 +174,7 @@
 
       <div class="analytics-section">
         <h3>Progress Report</h3>
+        <select class="dropdown" id="progressHabitSelect"></select>
         <div class="progress-row">
           <span id="progressCount" class="progress-count">--/30 Days</span>
           <select class="dropdown" id="progressMonthSelect"></select>
