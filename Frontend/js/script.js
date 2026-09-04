@@ -30,29 +30,16 @@ setInterval(updateClock, 1000);
 // ---------- Theme toggle ----------
 
 const themeBtn = document.getElementById("themeBtn");
-const themeIcon = document.getElementById("themeIcon");
 const root = document.documentElement;
 
-const MOON_PATH = `<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"></path>`;
-const SUN_PATH = `
-  <circle cx="12" cy="12" r="4"></circle>
-  <line x1="12" y1="2" x2="12" y2="4"></line>
-  <line x1="12" y1="20" x2="12" y2="22"></line>
-  <line x1="4.2" y1="4.2" x2="5.6" y2="5.6"></line>
-  <line x1="18.4" y1="18.4" x2="19.8" y2="19.8"></line>
-  <line x1="2" y1="12" x2="4" y2="12"></line>
-  <line x1="20" y1="12" x2="22" y2="12"></line>
-  <line x1="4.2" y1="19.8" x2="5.6" y2="18.4"></line>
-  <line x1="18.4" y1="5.6" x2="19.8" y2="4.2"></line>
-`;
-
+// Sun/moon icons are two stacked SVGs crossfaded purely via CSS off the
+// data-theme attribute (see .theme-icon rules in style.css) — no more
+// innerHTML swap, so the swap itself can animate smoothly.
 function applyTheme(theme) {
   if (theme === "dark") {
     root.setAttribute("data-theme", "dark");
-    themeIcon.innerHTML = MOON_PATH;
   } else {
     root.removeAttribute("data-theme");
-    themeIcon.innerHTML = SUN_PATH;
   }
   localStorage.setItem("habitTrackerTheme", theme);
 }
@@ -65,61 +52,117 @@ themeBtn.addEventListener("click", () => {
   applyTheme(current === "dark" ? "light" : "dark");
 });
 
-// ---------- View switching (Dashboard <-> Analytics <-> Habits) ----------
+// ---------- View switching (Dashboard <-> Today <-> Analytics <-> Focus <-> Habits) ----------
 
 const mainTopbar = document.querySelector(".topbar");
 const topbarDivider = document.querySelector(".topbar-divider");
 const dashboardMain = document.querySelector(".dashboard");
 const todayView = document.getElementById("todayView");
 const analyticsView = document.getElementById("analyticsView");
+const focusView = document.getElementById("focusView");
 const habitsView = document.getElementById("habitsView");
 const menuBtn = document.getElementById("menuBtn");
-const addBtn = document.getElementById("addBtn");
 const closeHabitsBtn = document.getElementById("closeHabitsBtn");
-const addBtn2 = document.getElementById("addBtn2");
 const habitNameInput = document.getElementById("habitNameInput");
+const clockBlock = document.querySelector(".clock-block");
 
 let activeTab = "dashboard";
+
+// Replays the fadeIn every time the Dashboard tab is (re)entered — removing
+// the classes first, then forcing a reflow, is what lets a CSS animation
+// restart instead of staying a no-op on a class it already has.
+function playDashboardFadeIn() {
+  clockBlock.classList.remove("animate__animated", "animate__fadeIn");
+  void clockBlock.offsetWidth;
+  clockBlock.classList.add("animate__animated", "animate__fadeIn");
+}
 
 function applyTab(tab) {
   activeTab = tab;
   dashboardMain.hidden = tab !== "dashboard";
   todayView.hidden = tab !== "today";
   analyticsView.hidden = tab !== "analytics";
+  focusView.hidden = tab !== "focus";
+  if (tab === "dashboard") playDashboardFadeIn();
   if (tab === "today") renderTodayView();
   if (tab === "analytics") renderAnalytics();
+  if (tab === "focus") {
+    renderFocusTimer();
+    renderFocusControls();
+    renderFocusHistory();
+  }
+}
+
+// Sliding nav underline: a single bar measured against the currently
+// active .nav-link's own position/width, instead of each link owning its
+// own border. Recalculated on tab change, on resize, and once the web font
+// has finished loading (Inter can shift text metrics after swap-in).
+const navUnderlineEl = document.getElementById("navUnderline");
+
+function updateNavUnderline() {
+  const activeLink = document.querySelector(".nav-link.active");
+  if (!activeLink || !navUnderlineEl) return;
+  navUnderlineEl.style.width = `${activeLink.offsetWidth}px`;
+  navUnderlineEl.style.transform = `translateX(${activeLink.offsetLeft}px)`;
+}
+
+function goToTab(tab) {
+  document.querySelectorAll(".nav-link").forEach((l) => l.classList.toggle("active", l.dataset.tab === tab));
+  updateNavUnderline();
+  applyTab(tab);
 }
 
 document.querySelectorAll(".nav-link").forEach((link) => {
   link.addEventListener("click", (e) => {
     e.preventDefault();
-    document.querySelectorAll(".nav-link").forEach((l) => l.classList.remove("active"));
-    link.classList.add("active");
-    applyTab(link.dataset.tab);
+    goToTab(link.dataset.tab);
   });
 });
 
+updateNavUnderline();
+window.addEventListener("resize", updateNavUnderline);
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(updateNavUnderline);
+}
+
+const MENU_MORPH_MS = 260;
+
 function showHabits() {
-  mainTopbar.hidden = true;
-  topbarDivider.hidden = true;
-  dashboardMain.hidden = true;
-  todayView.hidden = true;
-  analyticsView.hidden = true;
-  habitsView.hidden = false;
-  habitNameInput.focus();
+  menuBtn.classList.add("is-open");
+  setTimeout(() => {
+    mainTopbar.hidden = true;
+    topbarDivider.hidden = true;
+    dashboardMain.hidden = true;
+    todayView.hidden = true;
+    analyticsView.hidden = true;
+    focusView.hidden = true;
+    habitsView.hidden = false;
+    habitNameInput.focus();
+  }, MENU_MORPH_MS);
 }
 
 function showDashboard() {
   habitsView.hidden = true;
   mainTopbar.hidden = false;
   topbarDivider.hidden = false;
+  menuBtn.classList.remove("is-open");
   applyTab(activeTab);
+  updateNavUnderline();
+}
+
+// X -> hamburger morph plays first, then the panel swap happens after the
+// CSS transition has had time to run (same delayed-hide pattern as
+// showHabits() above), so the icon shape-change is actually visible.
+function closeHabits() {
+  closeHabitsBtn.classList.add("is-closing");
+  setTimeout(() => {
+    showDashboard();
+    closeHabitsBtn.classList.remove("is-closing");
+  }, MENU_MORPH_MS);
 }
 
 menuBtn.addEventListener("click", showHabits);
-addBtn.addEventListener("click", showHabits);
-closeHabitsBtn.addEventListener("click", showDashboard);
-addBtn2.addEventListener("click", () => habitNameInput.focus());
+closeHabitsBtn.addEventListener("click", closeHabits);
 
 // ---------- Habits: state + persistence ----------
 
@@ -134,19 +177,19 @@ const PRESET_COLORS = [
   "#E4488B", // pink
 ];
 
-let habits = loadHabits();
+// habits/completions/focusHistory start empty and are populated once by
+// initAppData() below, which fetches everything from the backend
+// (/api/state) on load — see the bottom of this file. save*() functions
+// persist back to the server instead of localStorage.
+let habits = [];
 let selectedColor = PRESET_COLORS[0];
 
-function loadHabits() {
-  try {
-    return JSON.parse(localStorage.getItem("habitTrackerHabits")) || [];
-  } catch {
-    return [];
-  }
-}
-
 function saveHabits() {
-  localStorage.setItem("habitTrackerHabits", JSON.stringify(habits));
+  fetch("/api/habits", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(habits),
+  }).catch((err) => console.error("Failed to save habits to server:", err));
 }
 
 // ---------- Completions: state + persistence ----------
@@ -154,18 +197,14 @@ function saveHabits() {
 // Shape: { "YYYY-MM-DD": { "<habitId>": true, ... }, ... } — a date key is
 // only present once at least one habit has been checked off that day.
 
-let completions = loadCompletions();
-
-function loadCompletions() {
-  try {
-    return JSON.parse(localStorage.getItem("habitTrackerCompletions")) || {};
-  } catch {
-    return {};
-  }
-}
+let completions = {};
 
 function saveCompletions() {
-  localStorage.setItem("habitTrackerCompletions", JSON.stringify(completions));
+  fetch("/api/completions", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(completions),
+  }).catch((err) => console.error("Failed to save completions to server:", err));
 }
 
 function dateKey(date) {
@@ -230,6 +269,75 @@ const habitListEl = document.getElementById("habitList");
 const emptyState = document.getElementById("emptyState");
 const habitCountEl = document.getElementById("habitCount");
 
+// Tracks the id of a habit just added via the form, so renderHabits() can
+// fade in only that one row (animate__fadeIn) instead of replaying the
+// animation on every existing row during a full re-render.
+let newlyAddedHabitId = null;
+
+// ---------- Daily habit reminders + notifications ----------
+//
+// Each habit optionally carries a reminderTime ("HH:MM", 24hr, from a native
+// time input) and a lastNotifiedDate guard so a match only fires once a day.
+// Only one reminder popover is open at a time, closed by an outside click or
+// Escape — same pattern as the date/year pickers elsewhere in this file.
+
+let openReminderPopover = null;
+
+function closeOpenReminderPopover() {
+  if (openReminderPopover) {
+    openReminderPopover.hidden = true;
+    openReminderPopover = null;
+  }
+}
+
+document.addEventListener("click", (e) => {
+  if (!openReminderPopover) return;
+  if (openReminderPopover.contains(e.target) || e.target.closest(".habit-reminder-btn")) return;
+  closeOpenReminderPopover();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeOpenReminderPopover();
+});
+
+function requestNotificationPermissionIfNeeded() {
+  if (!("Notification" in window)) return;
+  if (Notification.permission === "default") {
+    Notification.requestPermission().catch(() => {});
+  }
+}
+
+// Runs periodically while the tab is open and compares each habit's saved
+// reminder time against the current clock, in the same 24hr HH:MM shape.
+// There's no service worker here, so reminders only fire while this tab is
+// actually open — a known limitation of a static, backend-less app.
+function checkReminders() {
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  const now = new Date();
+  const currentTime = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const today = dateKey(now);
+  let changed = false;
+
+  habits.forEach((habit) => {
+    if (!habit.reminderTime || habit.reminderTime !== currentTime) return;
+    if (habit.lastNotifiedDate === today) return;
+    try {
+      new Notification("Habit reminder", {
+        body: `Time for "${habit.name}" (${habit.reminderTime})`,
+        tag: `habit-${habit.id}-${today}`,
+      });
+    } catch {
+      // Notifications can be unavailable/blocked in some environments —
+      // fail silently rather than break the rest of the app.
+    }
+    habit.lastNotifiedDate = today;
+    changed = true;
+  });
+
+  if (changed) saveHabits();
+}
+
+setInterval(checkReminders, 20000);
+
 // ---------- Drag-to-reorder ----------
 
 let draggedId = null;
@@ -278,6 +386,9 @@ function renderHabits() {
   habits.forEach((habit) => {
     const li = document.createElement("li");
     li.className = "habit-row";
+    if (habit.id === newlyAddedHabitId) {
+      li.className += " animate__animated animate__fadeIn";
+    }
     li.draggable = true;
     li.dataset.id = habit.id;
 
@@ -348,6 +459,127 @@ function renderHabits() {
       saveHabits();
     });
 
+    // Reminder: a small bell button that shows the saved time (24hr) once
+    // set, and opens a popover to set/change/clear it. Uses two plain
+    // hour/minute <select> dropdowns styled to match the app instead of a
+    // native <input type="time"> — that control renders as the browser's
+    // own (often dark, always unstyled) time-wheel widget, which clashes
+    // badly with the app's own minimal light/dark theme. Popover is a
+    // sibling of the button (not nested inside it) since a button can't
+    // validly contain another button.
+    const reminderWrap = document.createElement("div");
+    reminderWrap.className = "habit-reminder-wrap";
+
+    const reminderBtn = document.createElement("button");
+    reminderBtn.type = "button";
+    reminderBtn.className = "habit-reminder-btn" + (habit.reminderTime ? " has-reminder" : "");
+    reminderBtn.setAttribute(
+      "aria-label",
+      habit.reminderTime ? `Reminder set for ${habit.reminderTime}` : "Set daily reminder"
+    );
+    reminderBtn.innerHTML = `
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path>
+        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+      </svg>
+      ${habit.reminderTime ? `<span class="habit-reminder-time">${habit.reminderTime}</span>` : ""}
+    `;
+
+    const reminderPopover = document.createElement("div");
+    reminderPopover.className = "reminder-popover";
+    reminderPopover.hidden = true;
+
+    const timeFields = document.createElement("div");
+    timeFields.className = "reminder-time-fields";
+
+    const hourSelect = document.createElement("select");
+    hourSelect.className = "reminder-time-select reminder-hour-select";
+    hourSelect.setAttribute("aria-label", "Hour");
+    for (let h = 0; h < 24; h++) {
+      const opt = document.createElement("option");
+      opt.value = pad(h);
+      opt.textContent = pad(h);
+      hourSelect.appendChild(opt);
+    }
+
+    const timeColon = document.createElement("span");
+    timeColon.className = "reminder-time-colon";
+    timeColon.textContent = ":";
+
+    const minuteSelect = document.createElement("select");
+    minuteSelect.className = "reminder-time-select reminder-minute-select";
+    minuteSelect.setAttribute("aria-label", "Minute");
+    for (let m = 0; m < 60; m++) {
+      const opt = document.createElement("option");
+      opt.value = pad(m);
+      opt.textContent = pad(m);
+      minuteSelect.appendChild(opt);
+    }
+
+    function setTimeFields(value) {
+      const [h, m] = (value || "").split(":");
+      hourSelect.value = h || "00";
+      minuteSelect.value = m || "00";
+    }
+    setTimeFields(habit.reminderTime);
+
+    timeFields.appendChild(hourSelect);
+    timeFields.appendChild(timeColon);
+    timeFields.appendChild(minuteSelect);
+
+    const reminderActions = document.createElement("div");
+    reminderActions.className = "reminder-popover-actions";
+
+    const reminderSaveBtn = document.createElement("button");
+    reminderSaveBtn.type = "button";
+    reminderSaveBtn.className = "reminder-save-btn";
+    reminderSaveBtn.textContent = "Save";
+
+    const reminderClearBtn = document.createElement("button");
+    reminderClearBtn.type = "button";
+    reminderClearBtn.className = "reminder-clear-btn";
+    reminderClearBtn.textContent = "Remove";
+    reminderClearBtn.hidden = !habit.reminderTime;
+
+    reminderBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const wasHidden = reminderPopover.hidden;
+      closeOpenReminderPopover();
+      if (wasHidden) {
+        setTimeFields(habit.reminderTime);
+        reminderClearBtn.hidden = !habit.reminderTime;
+        reminderPopover.hidden = false;
+        openReminderPopover = reminderPopover;
+        hourSelect.focus();
+      }
+    });
+
+    reminderSaveBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      habit.reminderTime = `${hourSelect.value}:${minuteSelect.value}`;
+      delete habit.lastNotifiedDate;
+      saveHabits();
+      requestNotificationPermissionIfNeeded();
+      openReminderPopover = null;
+      renderHabits();
+    });
+
+    reminderClearBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      delete habit.reminderTime;
+      delete habit.lastNotifiedDate;
+      saveHabits();
+      openReminderPopover = null;
+      renderHabits();
+    });
+
+    reminderActions.appendChild(reminderSaveBtn);
+    reminderActions.appendChild(reminderClearBtn);
+    reminderPopover.appendChild(timeFields);
+    reminderPopover.appendChild(reminderActions);
+    reminderWrap.appendChild(reminderBtn);
+    reminderWrap.appendChild(reminderPopover);
+
     const deleteBtn = document.createElement("button");
     deleteBtn.type = "button";
     deleteBtn.className = "habit-delete";
@@ -361,9 +593,12 @@ function renderHabits() {
 
     li.appendChild(dotLabel);
     li.appendChild(nameInput);
+    li.appendChild(reminderWrap);
     li.appendChild(deleteBtn);
     habitListEl.appendChild(li);
   });
+
+  newlyAddedHabitId = null;
 }
 
 // ---------- Add habit ----------
@@ -375,20 +610,24 @@ habitForm.addEventListener("submit", (e) => {
   const name = habitNameInput.value.trim();
   if (!name) return;
 
+  const newHabitId = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   habits.push({
-    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+    id: newHabitId,
     name,
     color: selectedColor,
   });
 
+  newlyAddedHabitId = newHabitId;
   saveHabits();
   renderHabits();
   habitNameInput.value = "";
   habitNameInput.focus();
 });
 
-renderColorRow();
-renderHabits();
+// renderColorRow()/renderHabits() run once habits.length. Both run for the
+// first time from initAppData() at the bottom of this file, once the
+// server's data has actually loaded — not here, since habits is still []
+// at this point in the script.
 
 // ---------- Today view: tap a habit to check it off for a day ----------
 //
@@ -590,23 +829,30 @@ const progressHabitSelect = document.getElementById("progressHabitSelect");
 const progressMonthSelect = document.getElementById("progressMonthSelect");
 const progressCountEl = document.getElementById("progressCount");
 
-function tierForFraction(fraction) {
+// Tier 0 blank   — nothing done that day
+// Tier 1 light green — some habits done, but not all
+// Tier 2 green   — every habit done, but no focus/Pomodoro time logged
+// Tier 3 blue    — every habit done AND focus/Pomodoro time logged
+function tierForDay(fraction, hasFocusTime) {
   if (fraction <= 0) return 0;
-  if (fraction < 0.5) return 1;
-  if (fraction < 1) return 2;
-  return 3;
+  if (fraction < 1) return 1;
+  return hasFocusTime ? 3 : 2;
 }
 
-// Derives each day's heatmap tier from real completion history: how many
-// of today's habits were checked off on that day, out of the total.
+// Derives each day's heatmap tier from real completion history (how many of
+// today's habits were checked off that day) cross-referenced against real
+// focus-timer history (habitTrackerFocusHistory) for the same date.
 function computeYearData(year) {
   const total = habits.length;
   const days = [];
   for (let i = 0; i < 365; i++) {
     const date = dateForDayIndex(year, i);
-    const day = completions[dateKey(date)];
+    const key = dateKey(date);
+    const day = completions[key];
     const doneCount = day ? habits.filter((h) => day[h.id]).length : 0;
-    days.push(tierForFraction(total === 0 ? 0 : doneCount / total));
+    const fraction = total === 0 ? 0 : doneCount / total;
+    const hasFocusTime = !!focusHistory[key];
+    days.push(tierForDay(fraction, hasFocusTime));
   }
   return days;
 }
@@ -655,6 +901,8 @@ function renderYearList() {
   });
 }
 
+const TIER_LABELS = ["Missed", "Partial", "Done", "Done + Focus"];
+
 function renderLegend(data) {
   const now = new Date();
   const currentMonthIdx = activeYear === now.getFullYear() ? now.getMonth() : 0;
@@ -668,7 +916,7 @@ function renderLegend(data) {
   counts.forEach((count, tier) => {
     const item = document.createElement("div");
     item.className = "legend-item";
-    item.innerHTML = `<span class="legend-swatch" style="background:var(--tier${tier})"></span><span>${count}/${monthSlice.length} Days</span>`;
+    item.innerHTML = `<span class="legend-swatch" style="background:var(--tier${tier})"></span><span>${TIER_LABELS[tier]} · ${count}/${monthSlice.length} Days</span>`;
     legendRowEl.appendChild(item);
   });
 }
@@ -1057,3 +1305,201 @@ document.addEventListener("click", (e) => {
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") hideYearPicker();
 });
+
+// ---------- Focus view: Pomodoro timer ----------
+//
+// Work time (not break time) is logged to a per-day history in
+// localStorage, in real seconds actually spent focused — not just
+// completed 25-minute blocks — so pausing partway still counts.
+
+const focusModeLabelEl = document.getElementById("focusModeLabel");
+const focusTimeDisplayEl = document.getElementById("focusTimeDisplay");
+const focusWorkInput = document.getElementById("focusWorkInput");
+const focusBreakInput = document.getElementById("focusBreakInput");
+const focusStartBtn = document.getElementById("focusStartBtn");
+const focusResetBtn = document.getElementById("focusResetBtn");
+const focusHistoryListEl = document.getElementById("focusHistoryList");
+const focusHistoryEmptyEl = document.getElementById("focusHistoryEmpty");
+
+let focusHistory = {};
+
+function saveFocusHistory() {
+  fetch("/api/focus-history", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(focusHistory),
+  }).catch((err) => console.error("Failed to save focus history to server:", err));
+}
+
+function clampMinutes(value, max) {
+  const n = Math.round(Number(value));
+  if (!Number.isFinite(n)) return 1;
+  return Math.min(max, Math.max(1, n));
+}
+
+let focusMode = "work"; // "work" | "break"
+let focusWorkMinutes = clampMinutes(focusWorkInput.value, 180);
+let focusBreakMinutes = clampMinutes(focusBreakInput.value, 60);
+let focusRemainingSeconds = focusWorkMinutes * 60;
+let focusRunning = false;
+let focusIntervalId = null;
+let focusWorkSecondsThisRun = 0;
+
+function addFocusSeconds(seconds) {
+  if (seconds <= 0) return;
+  const key = dateKey(new Date());
+  focusHistory[key] = (focusHistory[key] || 0) + seconds;
+  saveFocusHistory();
+}
+
+function commitFocusProgress() {
+  if (focusWorkSecondsThisRun > 0) {
+    addFocusSeconds(focusWorkSecondsThisRun);
+    focusWorkSecondsThisRun = 0;
+  }
+}
+
+function renderFocusTimer() {
+  const total = Math.max(0, focusRemainingSeconds);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  focusTimeDisplayEl.textContent = `${pad(m)}:${pad(s)}`;
+  focusModeLabelEl.textContent = focusMode === "work" ? "Focus" : "Break";
+  focusModeLabelEl.className = "focus-mode-label" + (focusMode === "break" ? " break" : "");
+}
+
+function renderFocusControls() {
+  focusStartBtn.textContent = focusRunning ? "Pause" : "Start";
+  focusWorkInput.disabled = focusRunning;
+  focusBreakInput.disabled = focusRunning;
+}
+
+function formatFocusDuration(totalSeconds) {
+  const totalMinutes = Math.round(totalSeconds / 60);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  if (h === 0) return `${m} min`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
+}
+
+function labelForDateKey(key) {
+  const [y, m, d] = key.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  const diffDays = Math.round((startOfDay(new Date()) - startOfDay(date)) / 86400000);
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  return date.toLocaleDateString(undefined, { weekday: "short", day: "2-digit", month: "short" });
+}
+
+function renderFocusHistory() {
+  const keys = Object.keys(focusHistory)
+    .filter((k) => Math.round(focusHistory[k] / 60) > 0)
+    .sort()
+    .reverse();
+
+  focusHistoryEmptyEl.hidden = keys.length > 0;
+  focusHistoryListEl.innerHTML = "";
+
+  keys.slice(0, 14).forEach((key) => {
+    const row = document.createElement("div");
+    row.className = "focus-history-row";
+    row.innerHTML = `<span>${labelForDateKey(key)}</span><span class="focus-history-duration">${formatFocusDuration(focusHistory[key])}</span>`;
+    focusHistoryListEl.appendChild(row);
+  });
+}
+
+function focusTick() {
+  focusRemainingSeconds -= 1;
+  if (focusMode === "work") focusWorkSecondsThisRun += 1;
+
+  if (focusRemainingSeconds <= 0) {
+    commitFocusProgress();
+    focusMode = focusMode === "work" ? "break" : "work";
+    focusRemainingSeconds = (focusMode === "work" ? focusWorkMinutes : focusBreakMinutes) * 60;
+    renderFocusHistory();
+  }
+
+  renderFocusTimer();
+}
+
+function startFocusTimer() {
+  if (focusRunning) return;
+  focusRunning = true;
+  focusIntervalId = setInterval(focusTick, 1000);
+  renderFocusControls();
+}
+
+function pauseFocusTimer() {
+  if (!focusRunning) return;
+  focusRunning = false;
+  clearInterval(focusIntervalId);
+  focusIntervalId = null;
+  commitFocusProgress();
+  renderFocusControls();
+  renderFocusHistory();
+}
+
+function resetFocusTimer() {
+  pauseFocusTimer();
+  focusMode = "work";
+  focusRemainingSeconds = focusWorkMinutes * 60;
+  renderFocusTimer();
+  renderFocusControls();
+}
+
+focusStartBtn.addEventListener("click", () => {
+  if (focusRunning) {
+    pauseFocusTimer();
+  } else {
+    startFocusTimer();
+  }
+});
+
+focusResetBtn.addEventListener("click", resetFocusTimer);
+
+focusWorkInput.addEventListener("input", () => {
+  focusWorkMinutes = clampMinutes(focusWorkInput.value, 180);
+  if (!focusRunning && focusMode === "work") {
+    focusRemainingSeconds = focusWorkMinutes * 60;
+    renderFocusTimer();
+  }
+});
+
+focusBreakInput.addEventListener("input", () => {
+  focusBreakMinutes = clampMinutes(focusBreakInput.value, 60);
+  if (!focusRunning && focusMode === "break") {
+    focusRemainingSeconds = focusBreakMinutes * 60;
+    renderFocusTimer();
+  }
+});
+
+// ---------- App bootstrap ----------
+//
+// Everything above defines functions and sets up listeners; nothing has
+// been rendered yet. habits/completions/focusHistory all still hold their
+// empty defaults. This is the one place that fetches the real data from the
+// server and renders the app for the first time — replaces the scattered
+// synchronous localStorage-backed renders this app used to do at load time.
+
+async function initAppData() {
+  try {
+    const res = await fetch("/api/state");
+    if (!res.ok) throw new Error(`Server responded ${res.status}`);
+    const state = await res.json();
+    habits = Array.isArray(state.habits) ? state.habits : [];
+    completions = state.completions && typeof state.completions === "object" ? state.completions : {};
+    focusHistory = state.focusHistory && typeof state.focusHistory === "object" ? state.focusHistory : {};
+  } catch (err) {
+    console.error("Could not load data from the server — is `npm start` running? Falling back to empty state.", err);
+  }
+
+  renderColorRow();
+  renderHabits();
+  renderFocusTimer();
+  renderFocusControls();
+  renderFocusHistory();
+  if (activeTab !== "dashboard") applyTab(activeTab);
+}
+
+initAppData();

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Habit Tracker — Dashboard</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="icon-btn" id="menuBtn" aria-label="Menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="4" y1="7" x2="20" y2="7"></line>
+            <line x1="4" y1="12" x2="20" y2="12"></line>
+            <line x1="4" y1="17" x2="14" y2="17"></line>
+          </svg>
+        </button>
+        <button class="icon-btn" id="addBtn" aria-label="Add habit">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </button>
+      </div>
+
+      <nav class="topbar-nav">
+        <a href="#" class="nav-link active" data-tab="dashboard">Dashboard</a>
+        <a href="#" class="nav-link" data-tab="analytics">Analytics</a>
+      </nav>
+
+      <div class="topbar-right">
+        <button class="icon-btn" id="themeBtn" aria-label="Toggle theme">
+          <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="12" cy="12" r="4"></circle>
+            <line x1="12" y1="2" x2="12" y2="4"></line>
+            <line x1="12" y1="20" x2="12" y2="22"></line>
+            <line x1="4.2" y1="4.2" x2="5.6" y2="5.6"></line>
+            <line x1="18.4" y1="18.4" x2="19.8" y2="19.8"></line>
+            <line x1="2" y1="12" x2="4" y2="12"></line>
+            <line x1="20" y1="12" x2="22" y2="12"></line>
+            <line x1="4.2" y1="19.8" x2="5.6" y2="18.4"></line>
+            <line x1="18.4" y1="5.6" x2="19.8" y2="4.2"></line>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <hr class="topbar-divider" />
+
+    <main class="dashboard">
+      <section class="clock-block">
+        <h1 id="timeDisplay" class="time">--:--</h1>
+        <p id="dateDisplay" class="date-day">-- | --</p>
+      </section>
+    </main>
+
+    <section class="analytics-view" id="analyticsView" hidden>
+      <div class="score-row">
+        <h2 id="scoreHeading" class="score-heading">Score --/365</h2>
+        <span id="todayLabel" class="today-label">--</span>
+      </div>
+
+      <div class="heatmap-block">
+        <div class="heatmap-scroll">
+          <div class="heatmap-months" id="heatmapMonths"></div>
+          <div class="heatmap-body">
+            <div class="heatmap-daylabels">
+              <span>Mon</span>
+              <span>Wed</span>
+              <span>Fri</span>
+            </div>
+            <div class="heatmap-grid" id="heatmapGrid"></div>
+          </div>
+          <div class="inline-legend">
+            <span>Less</span>
+            <span class="legend-swatch-inline" style="background:var(--tier0)"></span>
+            <span class="legend-swatch-inline" style="background:var(--tier1)"></span>
+            <span class="legend-swatch-inline" style="background:var(--tier2)"></span>
+            <span class="legend-swatch-inline" style="background:var(--tier3)"></span>
+            <span>More</span>
+          </div>
+        </div>
+        <div class="year-list" id="yearList"></div>
+      </div>
+
+      <div class="legend-row" id="legendRow"></div>
+      <hr class="section-divider" />
+
+      <div class="analytics-section">
+        <h3>most visited</h3>
+        <div class="pill-row" id="mostVisited"></div>
+      </div>
+      <hr class="section-divider" />
+
+      <div class="analytics-section">
+        <h3>Scores</h3>
+        <select class="dropdown" id="scoresHabitSelect"></select>
+      </div>
+
+      <div class="analytics-section">
+        <h3>Progress Report</h3>
+        <div class="progress-row">
+          <span id="progressCount" class="progress-count">--/30 Days</span>
+          <select class="dropdown" id="progressMonthSelect"></select>
+        </div>
+        <div class="mini-heatmap-box">
+          <div class="heatmap-daylabels">
+            <span>Mon</span>
+            <span>Wed</span>
+            <span>Fri</span>
+          </div>
+          <div class="heatmap-grid" id="progressHeatmapGrid"></div>
+        </div>
+      </div>
+
+      <div class="analytics-section">
+        <h3>Statistics graph</h3>
+        <div class="graph-placeholder">Completion trends will chart here once habits are wired to real data</div>
+      </div>
+    </section>
+
+    <div class="day-popover" id="dayPopover" hidden>
+      <button class="day-popover-close" id="dayPopoverClose" aria-label="Close" type="button">×</button>
+      <div class="day-popover-date" id="dayPopoverDate">--</div>
+      <div class="day-popover-summary" id="dayPopoverSummary">--</div>
+      <div class="day-popover-habits" id="dayPopoverHabits"></div>
+    </div>
+
+    <section class="habits-view" id="habitsView" hidden>
+      <div class="habits-topbar">
+        <button class="icon-btn" id="closeHabitsBtn" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="5" y1="5" x2="19" y2="19"></line>
+            <line x1="19" y1="5" x2="5" y2="19"></line>
+          </svg>
+        </button>
+        <button class="icon-btn" id="addBtn2" aria-label="New habit">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="habits-header">
+        <h2>Your habits</h2>
+        <span id="habitCount" class="habit-count">0 habits</span>
+      </div>
+
+      <form id="habitForm" class="habit-form">
+        <input
+          type="text"
+          id="habitNameInput"
+          class="habit-input"
+          placeholder="New habit name..."
+          autocomplete="off"
+          maxlength="60"
+        />
+        <button type="submit" class="habit-add-btn">Add</button>
+      </form>
+
+      <div class="color-row" id="colorRow"></div>
+
+      <ul class="habit-list" id="habitList"></ul>
+
+      <p class="empty-state" id="emptyState">No habits yet. Add your first one above.</p>
+    </section>
+  </div>
+
+  <script src="js/script.js"></script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "name": "habit-tracker",
+  "version": "1.0.0",
+  "description": "A minimalist full-stack daily habit tracker — completion heatmap, Pomodoro focus timer, daily reminders, light/dark theme — with a small Node/Express backend so your data persists locally on your own machine.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "express": "^5.2.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

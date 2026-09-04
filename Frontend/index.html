@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Habit Tracker — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
@@ -17,23 +20,19 @@
             <line x1="4" y1="17" x2="14" y2="17"></line>
           </svg>
         </button>
-        <button class="icon-btn" id="addBtn" aria-label="Add habit">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-        </button>
       </div>
 
       <nav class="topbar-nav">
         <a href="#" class="nav-link active" data-tab="dashboard">Dashboard</a>
         <a href="#" class="nav-link" data-tab="today">Today</a>
         <a href="#" class="nav-link" data-tab="analytics">Analytics</a>
+        <a href="#" class="nav-link" data-tab="focus">Focus</a>
+        <span class="nav-underline" id="navUnderline"></span>
       </nav>
 
       <div class="topbar-right">
-        <button class="icon-btn" id="themeBtn" aria-label="Toggle theme">
-          <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <button class="icon-btn theme-toggle-btn" id="themeBtn" aria-label="Toggle theme">
+          <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
             <circle cx="12" cy="12" r="4"></circle>
             <line x1="12" y1="2" x2="12" y2="4"></line>
             <line x1="12" y1="20" x2="12" y2="22"></line>
@@ -43,6 +42,9 @@
             <line x1="20" y1="12" x2="22" y2="12"></line>
             <line x1="4.2" y1="19.8" x2="5.6" y2="18.4"></line>
             <line x1="18.4" y1="5.6" x2="19.8" y2="4.2"></line>
+          </svg>
+          <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"></path>
           </svg>
         </button>
       </div>
@@ -89,6 +91,38 @@
       <div class="today-list" id="todayList"></div>
 
       <p class="empty-state" id="todayEmpty" hidden>No habits yet — add one from the menu.</p>
+    </section>
+
+    <section class="focus-view" id="focusView" hidden>
+      <span id="focusModeLabel" class="focus-mode-label">Focus</span>
+
+      <h1 id="focusTimeDisplay" class="focus-time">25:00</h1>
+
+      <div class="focus-duration-row">
+        <label class="focus-duration-field">
+          <span>Focus</span>
+          <input type="number" id="focusWorkInput" min="1" max="180" value="25" inputmode="numeric" />
+          <span>min</span>
+        </label>
+        <label class="focus-duration-field">
+          <span>Break</span>
+          <input type="number" id="focusBreakInput" min="1" max="60" value="5" inputmode="numeric" />
+          <span>min</span>
+        </label>
+      </div>
+
+      <div class="focus-controls">
+        <button type="button" id="focusStartBtn" class="focus-btn focus-btn-primary">Start</button>
+        <button type="button" id="focusResetBtn" class="focus-btn">Reset</button>
+      </div>
+
+      <hr class="section-divider" />
+
+      <div class="focus-history">
+        <h3>History</h3>
+        <div class="focus-history-list" id="focusHistoryList"></div>
+        <p class="empty-state" id="focusHistoryEmpty" hidden>No focus time logged yet.</p>
+      </div>
     </section>
 
     <section class="analytics-view" id="analyticsView" hidden>
@@ -208,12 +242,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
             <line x1="5" y1="5" x2="19" y2="19"></line>
             <line x1="19" y1="5" x2="5" y2="19"></line>
-          </svg>
-        </button>
-        <button class="icon-btn" id="addBtn2" aria-label="New habit">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
+            <line x1="4" y1="12" x2="20" y2="12"></line>
           </svg>
         </button>
       </div>

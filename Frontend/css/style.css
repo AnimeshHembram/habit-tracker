@@ -6,7 +6,7 @@
   --divider: #cfcfcf;
   --accent: #141414;
   --icon: #141414;
-  --font: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --tier0: #e3e3e3;
   --tier1: #9be9a8;
   --tier2: #2fa84f;
@@ -30,6 +30,15 @@
   padding: 0;
 }
 
+/* Smoothly fades every color-driven property (background, text, borders,
+   shadows, icon strokes) whenever the theme's CSS variables change, so
+   switching light/dark crossfades instead of snapping. Low specificity —
+   any element with its own transition (e.g. .nav-link on hover) keeps it. */
+*, *::before, *::after {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease,
+    box-shadow 0.3s ease, fill 0.3s ease, stroke 0.3s ease;
+}
+
 [hidden] {
   display: none !important;
 }
@@ -42,7 +51,6 @@ body {
   font-family: var(--font);
   background: var(--bg);
   color: var(--text);
-  transition: background 0.25s ease, color 0.25s ease;
 }
 
 .app {
@@ -74,6 +82,7 @@ body {
 }
 
 .topbar-nav {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 28px;
@@ -87,7 +96,7 @@ body {
   text-decoration: none;
   padding-bottom: 6px;
   border-bottom: 2px solid transparent;
-  transition: color 0.2s ease, border-color 0.2s ease;
+  transition: color 0.2s ease;
 }
 
 .nav-link:hover {
@@ -97,7 +106,22 @@ body {
 .nav-link.active {
   color: var(--text);
   font-weight: 700;
-  border-bottom-color: var(--accent);
+}
+
+/* Single indicator bar that slides/resizes to the active nav-link's position
+   instead of each link owning its own border — see updateNavUnderline() in
+   script.js, which measures the active link and moves this element there. */
+.nav-underline {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 0;
+  background: var(--accent);
+  border-radius: 1px;
+  transform: translateX(0);
+  transition: transform 0.3s ease, width 0.3s ease;
+  pointer-events: none;
 }
 
 .icon-btn {
@@ -118,6 +142,85 @@ body {
   height: 24px;
 }
 
+/* Hamburger morphs into a "+" while the habits panel is open: the top bar
+   rotates into the vertical stroke, the middle bar already is the horizontal
+   stroke, and the short bottom bar shrinks away. */
+#menuBtn svg line {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+#menuBtn.is-open svg line:nth-child(1) {
+  transform: translateY(5px) rotate(90deg);
+}
+
+#menuBtn.is-open svg line:nth-child(3) {
+  opacity: 0;
+  transform: translateY(-5px) scaleX(0.4);
+}
+
+/* Reverse morph: the habits panel's X closes into a hamburger. Base (no
+   class) renders the raw X coordinates untouched; .is-closing rotates the
+   two diagonals flat into top/bottom bars and fades in the third (middle)
+   bar — mirrors the hamburger->plus morph above, just inverted. */
+#closeHabitsBtn svg line {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+#closeHabitsBtn svg line:nth-child(3) {
+  opacity: 0;
+  transform: scaleX(0.2);
+}
+
+#closeHabitsBtn.is-closing svg line:nth-child(1) {
+  transform: translateY(-5px) rotate(-45deg);
+}
+
+#closeHabitsBtn.is-closing svg line:nth-child(2) {
+  transform: translateY(5px) rotate(45deg);
+}
+
+#closeHabitsBtn.is-closing svg line:nth-child(3) {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+/* Theme toggle: sun and moon icons are stacked and crossfaded/rotated based
+   on the data-theme attribute, instead of an instant innerHTML swap. */
+.theme-toggle-btn {
+  position: relative;
+}
+
+.theme-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(0deg) scale(1);
+  transition: transform 0.4s ease, opacity 0.4s ease;
+}
+
+.theme-icon-sun {
+  opacity: 1;
+}
+
+.theme-icon-moon {
+  opacity: 0;
+  transform: translate(-50%, -50%) rotate(-90deg) scale(0.5);
+}
+
+[data-theme="dark"] .theme-icon-sun {
+  opacity: 0;
+  transform: translate(-50%, -50%) rotate(90deg) scale(0.5);
+}
+
+[data-theme="dark"] .theme-icon-moon {
+  opacity: 1;
+  transform: translate(-50%, -50%) rotate(0deg) scale(1);
+}
+
 .topbar-divider {
   border: none;
   border-top: 1px solid var(--divider);
@@ -135,6 +238,26 @@ body {
 
 .clock-block {
   text-align: center;
+}
+
+/* Minimal Animate.css-compatible fadeIn — same class names/behavior as the
+   library, kept local so the app has no external script dependency. */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate__animated {
+  animation-duration: 0.8s;
+  animation-fill-mode: both;
+}
+
+.animate__fadeIn {
+  animation-name: fadeIn;
 }
 
 .time {
@@ -291,6 +414,159 @@ body {
 
 .today-check.done {
   border-color: transparent;
+}
+
+/* ---------- Focus view (Pomodoro timer) ---------- */
+
+.focus-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 24px 60px;
+  max-width: 440px;
+  width: 100%;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.focus-mode-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.focus-mode-label::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--tier2);
+}
+
+.focus-mode-label.break::before {
+  background: var(--tier3);
+}
+
+.focus-time {
+  margin-top: 12px;
+  font-size: clamp(56px, 12vw, 96px);
+  font-weight: 800;
+  letter-spacing: 2px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.focus-duration-row {
+  display: flex;
+  gap: 24px;
+  margin-top: 28px;
+}
+
+.focus-duration-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.focus-duration-field input {
+  width: 56px;
+  padding: 8px 6px;
+  border: 1px solid var(--divider);
+  border-radius: 8px;
+  background: none;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.focus-duration-field input:disabled {
+  opacity: 0.5;
+}
+
+.focus-duration-field input::-webkit-outer-spin-button,
+.focus-duration-field input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.focus-controls {
+  display: flex;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.focus-btn {
+  border: 1px solid var(--divider);
+  background: none;
+  color: var(--text);
+  border-radius: 999px;
+  padding: 10px 28px;
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.focus-btn:hover {
+  border-color: var(--text-muted);
+}
+
+.focus-btn-primary {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+}
+
+.focus-btn-primary:hover {
+  opacity: 0.85;
+}
+
+.focus-history {
+  width: 100%;
+  text-align: left;
+}
+
+.focus-history h3 {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+
+.focus-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.focus-history-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 2px;
+  border-bottom: 1px solid var(--divider);
+  font-size: 14px;
+}
+
+.focus-history-row:last-child {
+  border-bottom: none;
+}
+
+.focus-history-duration {
+  font-weight: 700;
+  color: var(--text-muted);
 }
 
 /* ---------- Habits view ---------- */
@@ -503,6 +779,127 @@ body {
 
 .habit-delete:hover {
   color: var(--text);
+}
+
+/* ---------- Habit reminders ---------- */
+
+.habit-reminder-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.habit-reminder-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 8px;
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.habit-reminder-btn:hover {
+  color: var(--text);
+  background: var(--divider);
+}
+
+.habit-reminder-btn.has-reminder {
+  color: var(--tier3);
+}
+
+.habit-reminder-time {
+  font-variant-numeric: tabular-nums;
+}
+
+.reminder-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--bg);
+  border: 1px solid var(--divider);
+  border-radius: 12px;
+  padding: 12px;
+  width: 190px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+/* Two plain hour/minute dropdowns (24hr) instead of a native
+   <input type="time"> — that control renders as the browser's own
+   time-wheel widget, which doesn't follow the app's light/dark theme and
+   looks out of place inside this popover. */
+.reminder-time-fields {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.reminder-time-select {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 4px;
+  border: 1px solid var(--divider);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+  text-align-last: center;
+  cursor: pointer;
+}
+
+.reminder-time-select:hover {
+  border-color: var(--text-muted);
+}
+
+.reminder-time-colon {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.reminder-popover-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.reminder-save-btn,
+.reminder-clear-btn {
+  flex: 1;
+  border: 1px solid var(--divider);
+  background: none;
+  color: var(--text);
+  border-radius: 999px;
+  padding: 6px 0;
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.reminder-save-btn {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+}
+
+.reminder-save-btn:hover {
+  opacity: 0.85;
+}
+
+.reminder-clear-btn:hover {
+  border-color: var(--text-muted);
 }
 
 /* ---------- Analytics view ---------- */
@@ -1022,7 +1419,10 @@ body {
     margin: 0 24px;
   }
   .topbar-nav {
-    gap: 16px;
+    gap: 14px;
+  }
+  .nav-link {
+    font-size: 14px;
   }
   .analytics-view {
     padding: 32px 24px 48px;
@@ -1047,5 +1447,23 @@ body {
   }
   .year-list-arrow-btn {
     display: none;
+  }
+}
+
+@media (max-width: 380px) {
+  .topbar {
+    padding: 20px 16px 14px;
+  }
+  .topbar-divider {
+    margin: 0 16px;
+  }
+  .topbar-left {
+    gap: 14px;
+  }
+  .topbar-nav {
+    gap: 9px;
+  }
+  .nav-link {
+    font-size: 12px;
   }
 }
