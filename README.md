@@ -22,10 +22,34 @@ A daily habit tracker you run on your own computer. Track habits, keep streaks a
 You need Python 3.10+ installed.
 
 ```bash
-git clone https://github.com/<your-username>/daily-habit-tracker.git
-cd daily-habit-tracker
+git clone https://github.com/AnimeshHembram/habit-tracker.git
+cd habit-tracker
 python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
+```
+
+### Activate the virtual environment
+
+**macOS / Linux**
+
+```bash
+source .venv/bin/activate
+```
+
+**Windows PowerShell**
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+**Windows Command Prompt**
+
+```cmd
+.venv\Scripts\activate.bat
+```
+
+Then install the dependencies and start the app:
+
+```bash
 pip install -r requirements.txt
 python run.py
 ```
@@ -41,22 +65,22 @@ This starts a local server and opens `http://127.0.0.1:5000` in your browser aut
 
 ## Project structure
 
-```
+```text
 daily-habit-tracker/
-├── run.py                       # entry point - starts the local server
+├── run.py                         # entry point - starts the local server
 ├── requirements.txt
 ├── app/
-│   ├── __init__.py               # Flask app factory
+│   ├── __init__.py                # Flask app factory
 │   ├── routes.py                  # page + REST API routes
-│   ├── models.py                   # Habit data model
-│   ├── database.py                  # SQLite layer: habits, logs, settings
-│   ├── utils.py                      # streak math + heatmap tier logic
+│   ├── models.py                  # Habit data model
+│   ├── database.py                # SQLite layer: habits, logs, settings
+│   ├── utils.py                   # streak math + heatmap tier logic
 │   ├── templates/
-│   │   └── index.html                 # the one page
+│   │   └── index.html              # the one page
 │   └── static/
-│       ├── css/style.css               # dark theme, CSS variables for theming
-│       ├── js/app.js                    # all frontend logic (fetch-driven, no build step)
-│       └── uploads/                      # profile photos land here (gitignored)
+│       ├── css/style.css           # dark theme, CSS variables for theming
+│       ├── js/app.js               # all frontend logic (fetch-driven, no build step)
+│       └── uploads/                # profile photos land here (gitignored)
 └── docs/screenshots/
 ```
 
